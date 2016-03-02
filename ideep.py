@@ -1065,13 +1065,10 @@ def run_predict():
     for protein in os.listdir(data_dir):
         print protein
         fw.write(protein + '\t')
-        #model = merge_seperate_network_with_multiple_features(protein, kmer=True, rg=True, clip=True, rna=True, go=False, seq = False, fw = fw)
-        run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=False, seq = False, fw = fw)
-        #run_individual_network(protein, kmer=False, rg=False, clip=False, rna=True, go=False, seq = False, fw = fw)
+        model = merge_seperate_network_with_multiple_features(protein, kmer=True, rg=True, clip=True, rna=True, go=False, seq = False, fw = fw)
     fw.close()
          
 if __name__ == "__main__":
-    #labels = [1]*50 +[0] * 50
     #training_indice, training_label, validation_indice, validation_label = split_training_validation(labels)
     #pdb.set_trace()
     run_predict()
