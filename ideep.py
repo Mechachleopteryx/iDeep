@@ -656,25 +656,19 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
     if seq:
         print seq_auc
     else:
-        eg_array = np.array(eg_array).T
-        print eg_array.shape 
-        #weight_score = get_meta_predictor(eg_array)
-        weight_score = eg_array.mean(axis=1)
-        
-        weight_auc = roc_auc_score(true_y, weight_score)
-        
+
         print str(kmer_auc) + '\t' +  str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) +'\t'  + str(weight_auc)
-        fw.write(str(kmer_auc) + '\t' +  str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) + '\t' + str(weight_auc) +'\n')
+        fw.write(str(kmer_auc) + '\t' +  str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) +'\n')
         
         mylabel = "\t".join(map(str, true_y))
-        myprob = "\t".join(map(str, weight_score))
+        
         myprob1 = "\t".join(map(str, kmer_predict))
         myprob2 = "\t".join(map(str, rg_predict))
         myprob3 = "\t".join(map(str, clip_predict))
         myprob4 = "\t".join(map(str, rna_predict))
     
         fw.write(mylabel + '\n')
-        fw.write(myprob + '\n')
+        
         fw.write(myprob1 + '\n')
         fw.write(myprob2 + '\n')
         fw.write(myprob3 + '\n')
