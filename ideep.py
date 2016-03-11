@@ -718,7 +718,7 @@ def split_training_validation(classes, validation_size = 0.2, shuffle = False):
             
     return training_indice, training_label, validation_indice, validation_label        
         
-def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, go=False, seq = False, fw = None):
+def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, go=False, fw = None):
     training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, seq=seq)
     print 'training', len(training_data)
     go_hid = 512
@@ -764,10 +764,6 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
         rna_net = get_rnn_fea(rna_train, sec_num_hidden = rna_hid, num_hidden = rna_hid*2)
         rna_data = []
         training_data["X_RNA"] = []
-    if seq:
-        seq_train = training_data["seq"]
-        seq_net =  get_cnn_network()
-        seq_train = []
         
     y, encoder = preprocess_labels(training_label)
     val_y, encoder = preprocess_labels(validation_label, encoder = encoder)
@@ -813,11 +809,6 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
         total_hid = total_hid + rna_hid
         rna_train = []
         rna_validation = []
-    if seq:
-        training_net.append(seq_net)
-        training.append(seq_train)
-        total_hid = total_hid + cnn_hid
-        seq_train = []
         
     model.add(Merge(training_net, mode='concat'))
     
@@ -858,9 +849,6 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
     if rna:
         rna_test, rna_scaler = preprocess_data(test_data["X_RNA"], scaler=rna_scaler)
         testing.append(rna_test)
-    if seq:
-        seq_test = test_data["seq"]
-        testing.append(seq_test)
     '''
     pdb.set_trace()
     get_feature = theano.function([model.layers[0].input],model.layers[8].get_output(train=False),allow_input_downcast=True)
@@ -1055,11 +1043,11 @@ def run_get_sequence():
 
 def run_predict():
     data_dir = '/home/panxy/eclipse/ideep/datasets/clip'
-    fw = open('result_file_seq_cnn', 'w')
+    fw = open('result_file', 'w')
     for protein in os.listdir(data_dir):
         print protein
         fw.write(protein + '\t')
-        model = merge_seperate_network_with_multiple_features(protein, kmer=True, rg=True, clip=True, rna=True, go=False, seq = False, fw = fw)
+        model = merge_seperate_network_with_multiple_features(protein, kmer=True, rg=True, clip=True, rna=True, go=False, fw = fw)
     fw.close()
          
 if __name__ == "__main__":
