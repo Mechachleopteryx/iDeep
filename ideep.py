@@ -261,7 +261,7 @@ def read_seq(seq_file):
     
     return np.array(seq_list)
 
-def load_data(path, kmer=True, rg=True, clip=True, rna=True, go=True, seq= True):
+def load_data(path, kmer=True, rg=True, clip=True, rna=True, go=True, seq= False):
     """
         Load data matrices from the specified folder.
     """
@@ -719,7 +719,7 @@ def split_training_validation(classes, validation_size = 0.2, shuffle = False):
     return training_indice, training_label, validation_indice, validation_label        
         
 def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, go=False, fw = None):
-    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, seq=seq)
+    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go)
     print 'training', len(training_data)
     go_hid = 512
     kmer_hid = 512
@@ -828,7 +828,7 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
     training = []
     validation = []
     
-    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, seq=seq)
+    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go)
     
     true_y = test_data["Y"].copy()
     
