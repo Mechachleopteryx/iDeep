@@ -1,12 +1,14 @@
 import sys
 import os
+import numpy
+#sys.path.insert(0, '/usr/local/lib/python2.7/dist-packages/Keras-0.3.1-py2.7.egg')
 from keras.models import Sequential, model_from_config
-from keras.layers.core import Dense, Dropout, Activation, AutoEncoder, Flatten, Merge
+from keras.layers.core import Dense, Dropout, Activation, Flatten, Merge
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import PReLU
 from keras.utils import np_utils, generic_utils
 from keras.optimizers import SGD, RMSprop, Adadelta, Adagrad, Adam
-from keras.layers import containers, normalization
+from keras.layers import normalization
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.layers.recurrent import LSTM
 from keras.layers.embeddings import Embedding
@@ -15,6 +17,7 @@ from keras import regularizers
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.constraints import maxnorm
 from keras.optimizers import kl_divergence
+from seya.layers.recurrent import Bidirectional
 from sklearn import svm, grid_search
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -28,17 +31,21 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import random
 import gzip
+from sklearn import svm
 from sklearn.svm import LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score
 from sklearn.cross_validation import train_test_split
+from sklearn.grid_search import GridSearchCV
 from scipy import sparse
 import pdb
 from math import  sqrt
 from sklearn.metrics import roc_curve, auc
 import theano
+import subprocess as sp
+import scipy.stats as stats
 
 def calculate_performace(test_num, pred_y,  labels):
     tp =0
@@ -261,7 +268,67 @@ def read_seq(seq_file):
     
     return np.array(seq_list)
 
-def load_data(path, kmer=True, rg=True, clip=True, rna=True, go=True, seq= False):
+def read_oli_feature(seq_file):
+    trids4 = get_4_trids()
+    seq_list = []
+    seq = ''
+    with gzip.open(seq_file, 'r') as fp:
+        for line in fp:
+            if line[0] == '>':
+                name = line[1:-1]
+                if len(seq):
+                    seq_array = get_4_nucleotide_composition(trids4, seq)
+                    seq_list.append(seq_array)                    
+                seq = ''
+            else:
+                seq = seq + line[:-1]
+        if len(seq):
+            seq_array = get_4_nucleotide_composition(trids4, seq)
+            seq_list.append(seq_array) 
+    
+    return np.array(seq_list)    
+
+def get_4_trids():
+    nucle_com = []
+    chars = ['A', 'C', 'G', 'U']
+    base=len(chars)
+    end=len(chars)**4
+    for i in range(0,end):
+        n=i
+        ch0=chars[n%base]
+        n=n/base
+        ch1=chars[n%base]
+        n=n/base
+        ch2=chars[n%base]
+        n=n/base
+        ch3=chars[n%base]
+        nucle_com.append(ch0 + ch1 + ch2 + ch3)
+    return  nucle_com
+
+def get_4_nucleotide_composition(tris, seq, pythoncount = True):
+    #pdb.set_trace()
+    seq_len = len(seq)
+    seq = seq.upper().replace('T', 'U')
+    tri_feature = []
+    
+    if pythoncount:
+        for val in tris:
+            num = seq.count(val)
+            tri_feature.append(float(num)/seq_len)
+    else:
+        k = len(tris[0])
+        tmp_fea = [0] * len(tris)
+        for x in range(len(seq) + 1- k):
+            kmer = seq[x:x+k]
+            if kmer in tris:
+                ind = tris.index(kmer)
+                tmp_fea[ind] = tmp_fea[ind] + 1
+        tri_feature = [float(val)/seq_len for val in tmp_fea]
+        #pdb.set_trace()        
+    return tri_feature
+
+
+def load_data(path, kmer=True, rg=True, clip=True, rna=True, go=False, motif= True, seq = True, oli = True):
     """
         Load data matrices from the specified folder.
     """
@@ -282,8 +349,11 @@ def load_data(path, kmer=True, rg=True, clip=True, rna=True, go=True, seq= False
     if rna:  data["X_RNA"]  = np.loadtxt(gzip.open(os.path.join(path,
                                             "matrix_RNAfold.tab.gz")),
                                             skiprows=1)
+    if motif: data["motif"] = np.loadtxt(gzip.open(os.path.join(path, 'motif_fea.gz'))
+                                         , skiprows=1, usecols=range(1,103))
     if seq: data["seq"] = read_seq(os.path.join(path, 'sequences.fa.gz'))
-                                   
+    if oli: data["oli"] = read_oli_feature(os.path.join(path, 'sequences.fa.gz'))
+    
     data["Y"] = np.loadtxt(gzip.open(os.path.join(path,
                                             "matrix_Response.tab.gz")),
                                             skiprows=1)
@@ -358,7 +428,7 @@ def get_seq_for_RNA_bed(RNA_bed_file, whole_seq):
     fp.close()
     fw.close()
 
-def preprocess_data(X, scaler=None, stand = True):
+def preprocess_data(X, scaler=None, stand = False):
     if not scaler:
         if stand:
             scaler = StandardScaler()
@@ -429,17 +499,26 @@ def get_cnn_network():
     feature = get_feature(data)
     '''
     print 'configure cnn network'
-    nbfilter = 32
+    nbfilter = 102
+    #forward_lstm = LSTM(input_dim=nbfilter, output_dim=nbfilter, return_sequences=True)
+    #backward_lstm = LSTM(input_dim=nbfilter, output_dim=nbfilter, return_sequences=True)
+    #brnn = Bidirectional(forward=forward_lstm, backward=backward_lstm, return_sequences=True)
+    #brnn = Merge([forward_lstm, backward_lstm], mode='concat', concat_axis=-1)
+
     model = Sequential()
     model.add(Convolution1D(input_dim=4,input_length=107,
                             nb_filter=nbfilter,
-                            filter_length=6,
+                            filter_length=7,
                             border_mode="valid",
                             activation="relu",
                             subsample_length=1))
     
     model.add(MaxPooling1D(pool_length=3))
     
+    model.add(Dropout(0.5))
+
+    #model.add(brnn)
+
     #model.add(Dropout(0.5))
     
     model.add(Flatten())
@@ -447,7 +526,7 @@ def get_cnn_network():
     model.add(Dense(nbfilter, activation='relu'))
     #model.add(Activation('relu'))
     #model.add(PReLU())
-    #model.add(BatchNormalization())
+    #model.add(BatchNormalization(mode=2))
     #model.add(Dense(64))
     model.add(Dropout(0.25))
     
@@ -462,12 +541,12 @@ def get_rnn_fea(train, sec_num_hidden = 128, num_hidden = 128):
     #model.add(Dense(num_hidden, input_dim=train.shape[1], activation='relu'))
     model.add(Dense(num_hidden, input_shape=(train.shape[1],), activation='relu'))
     model.add(PReLU())
-    model.add(BatchNormalization())
+    model.add(BatchNormalization(mode=2))
     model.add(Dropout(0.5))
     model.add(Dense(num_hidden, input_dim=num_hidden, activation='relu'))
     #model.add(Dense(num_hidden, input_shape=(num_hidden,), activation='relu'))
     model.add(PReLU())
-    model.add(BatchNormalization())
+    model.add(BatchNormalization(mode=2))
     #model.add(Activation('relu'))
     model.add(Dropout(0.5))
     '''
@@ -496,7 +575,7 @@ def run_network(model, total_hid, training, testing, y, validation, val_y, prote
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
     print 'model training'
-    #checkpointer = ModelCheckpoint(filepath="models/" + protein + "_bestmodel.hdf5", verbose=0, save_best_only=True)
+    checkpointer = ModelCheckpoint(filepath="models/" + protein + "_bestmodel.hdf5", verbose=0, save_best_only=True)
     earlystopper = EarlyStopping(monitor='val_loss', patience=5, verbose=0)
 
     model.fit(training, y, batch_size=50, nb_epoch=30, verbose=0, validation_data=(validation, val_y), callbacks=[earlystopper])
@@ -513,19 +592,32 @@ def run_randomforest_classifier(data, labels, test):
     pred_prob = clf.predict_proba(test)[:,1]
     return pred_prob, clf  
 
+def run_svm_classifier(data, labels, test):
+    C_range = 10.0 ** np.arange(-1, 2)
+    param_grid = dict(C=C_range.tolist())
+    svr = svm.SVC(probability =True, kernel = 'linear')
+    grid = GridSearchCV(svr, param_grid)
+    grid.fit(data, labels)
+    
+    clf = grid.best_estimator_
+    pred_prob = clf.predict_proba(test)[:,1]
+    return pred_prob, clf
+    
 def calculate_auc(net, hid, train, test, true_y, train_y, rf = False, validation = None, val_y = None, protein = None):
     #print 'running network' 
     if rf:
-        predict, model = run_randomforest_classifier(train, train_y, test)
+        print 'running oli'
+        #pdb.set_trace()
+        predict, model = run_svm_classifier(train, train_y, test)
     else:
         predict, model = run_network(net, hid, train, test, train_y, validation, val_y, protein = protein)
         #
         
-        get_feature = theano.function([model.layers[0].input],model.layers[7].get_output(train=False),allow_input_downcast=True)
+        #get_feature = theano.function([model.layers[0].input],model.layers[7].get_output(train=False),allow_input_downcast=True)
         #train = get_feature(train)
-        test = get_feature(test)
-        plt.imshow(test,cmap = cm.Greys_r)
-        plt.show()
+        #test = get_feature(test)
+        #plt.imshow(test,cmap = cm.Greys_r)
+        #plt.show()
         '''
         #pdb.set_trace()
         real_labels = []
@@ -542,16 +634,21 @@ def calculate_auc(net, hid, train, test, true_y, train_y, rf = False, validation
     print "Test AUC: ", auc
     return auc, predict
 
-def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=True, seq = False, fw = None):
-    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, seq=seq)
+def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=False, motif = True, seq = True, oli = False, fw = None):
+    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, 
+                              seq = seq, oli = oli)
     print 'training', len(training_data)
     go_hid = 512
     kmer_hid = 512
     rg_hid = 128
     clip_hid = 256
     rna_hid=64
-    seq_hid = 64
-    training_indice, training_label, validation_indice, validation_label = split_training_validation(training_data["Y"])
+    motif_hid = 64
+    seq_hid = 102
+    oli_hid = 64
+    train_Y = training_data["Y"]
+    #pdb.set_trace()
+    training_indice, training_label, validation_indice, validation_label = split_training_validation(train_Y)
     if go:
         go_data, go_scaler = preprocess_data(training_data["X_GO"])
         go_train = go_data[training_indice]
@@ -582,14 +679,30 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
         rna_validation = rna_data[validation_indice]        
         rna_net = get_rnn_fea(rna_train, sec_num_hidden = rna_hid, num_hidden = rna_hid*2)
         rna_data = []
+    if motif:
+        motif_data, motif_scaler = preprocess_data(training_data["motif"], stand = True)
+        motif_train = motif_data[training_indice]
+        motif_validation = motif_data[validation_indice] 
+        motif_net = get_rnn_fea(motif_train, sec_num_hidden = motif_hid, num_hidden = motif_hid*2)
+        #seq_net =  get_cnn_network()
+        motif_data = []
     if seq:
         seq_data = training_data["seq"]
         seq_train = seq_data[training_indice]
         seq_validation = seq_data[validation_indice] 
         seq_net =  get_cnn_network()
         seq_data = []
-    
+    if oli:
+        oli_data, oli_scaler = preprocess_data(training_data["oli"], stand = True)
+        oli_train = oli_data[training_indice]
+        oli_validation = oli_data[validation_indice] 
+        oli_net = get_rnn_fea(oli_train, sec_num_hidden = oli_hid, num_hidden = oli_hid*2)
+        #seq_net =  get_cnn_network()
+        #oli_data = []
+                   
     rf = False
+    if oli:
+        rf = True
     if not rf:   
         #all_label =  training_data["Y"]   
         y, encoder = preprocess_labels(training_label)
@@ -601,7 +714,8 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
     training_data.clear()
     
     
-    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, seq=seq)
+    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, 
+                          seq = seq, oli = oli)
     
     true_y = test_data["Y"].copy()
     
@@ -638,12 +752,19 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
         clip_test = [] 
         eg_array.append(clip_predict)
     if rna:
-        rna_test, rna_scaler = preprocess_data(test_data["X_RNA"], scaler=rna_scaler)
+        rna_test, rna_scaler = preprocess_data(test_data["X_RNA"], scaler=rna_scaler, stand = True)
         rna_auc, rna_predict = calculate_auc(rna_net, rna_hid, rna_train, rna_test, true_y, y, validation = rna_validation, 
                                              val_y = val_y, protein = protein,  rf= rf)
         rna_train  = []
         rna_test = []        
         eg_array.append(rna_predict)
+    if motif:
+        motif_test, motif_scaler = preprocess_data(test_data["motif"], scaler=motif_scaler, stand = True)
+        motif_auc, motif_predict = calculate_auc(motif_net, motif_hid, motif_train, motif_test, true_y, y, validation = motif_validation,
+                                              val_y = val_y, protein = protein,  rf= rf)
+        motif_train = []
+        motif_test = []
+        eg_array.append(motif_predict)
     if seq:
         seq_test = test_data["seq"]
         seq_auc, seq_predict = calculate_auc(seq_net, seq_hid, seq_train, seq_test, true_y, y, validation = seq_validation,
@@ -651,29 +772,50 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
         seq_train = []
         seq_test = []
         eg_array.append(seq_predict)
-        
+    if oli:
+        oli_test, oli_scaler = preprocess_data(test_data["oli"], scaler=oli_scaler, stand = True)
+        oli_auc, oli_predict = calculate_auc(oli_net, oli_hid, oli_data, oli_test, true_y, train_Y,
+                                              val_y = val_y, protein = protein,  rf= rf)
+        oli_train = []
+        oli_test = []
+        eg_array.append(oli_predict)
+                
     test_data.clear()
-    if seq:
-        print seq_auc
+    if 1:
+        if oli:
+            print oli_auc
+        if seq:
+            print seq_auc
+        #print seq_auc, motif_auc, rg_auc, clip_auc, 
     else:
-
-        print str(kmer_auc) + '\t' +  str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) +'\t'  + str(weight_auc)
-        fw.write(str(kmer_auc) + '\t' +  str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) +'\n')
-        
-        mylabel = "\t".join(map(str, true_y))
-        
-        myprob1 = "\t".join(map(str, kmer_predict))
-        myprob2 = "\t".join(map(str, rg_predict))
-        myprob3 = "\t".join(map(str, clip_predict))
-        myprob4 = "\t".join(map(str, rna_predict))
+    	eg_array = np.array(eg_array).T
+    	print eg_array.shape 
+    	#weight_score = get_meta_predictor(eg_array)
+    	weight_score = eg_array.mean(axis=1)
     
-        fw.write(mylabel + '\n')
+    	weight_auc = roc_auc_score(true_y, weight_score)
         
-        fw.write(myprob1 + '\n')
-        fw.write(myprob2 + '\n')
-        fw.write(myprob3 + '\n')
-        fw.write(myprob4 + '\n')
+    	print str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) +'\t'  + str(motif_auc) +'\t' + '\t'  + str(seq_auc) + str(weight_auc)
+    	fw.write(str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) + '\t'  + str(motif_auc) + '\t'  + str(seq_auc) +'\t' + str(weight_auc) +'\n')
     
+    	mylabel = "\t".join(map(str, true_y))
+    	myprob = "\t".join(map(str, weight_score))
+    	#myprob1 = "\t".join(map(str, kmer_predict))
+    	myprob2 = "\t".join(map(str, rg_predict))
+    	myprob3 = "\t".join(map(str, clip_predict))
+    	myprob4 = "\t".join(map(str, rna_predict))
+    	myprob5 = "\t".join(map(str, motif_predict))
+        myprob6 = "\t".join(map(str, seq_predict))
+        
+    	fw.write(mylabel + '\n')
+    	fw.write(myprob + '\n')
+    	#fw.write(myprob1 + '\n')
+    	fw.write(myprob2 + '\n')
+    	fw.write(myprob3 + '\n')
+    	fw.write(myprob4 + '\n')
+    	fw.write(myprob5 + '\n')
+        fw.write(myprob6 + '\n')
+        
 
 def split_training_validation(classes, validation_size = 0.2, shuffle = False):
     """split sampels based on balnace classes"""
@@ -718,8 +860,8 @@ def split_training_validation(classes, validation_size = 0.2, shuffle = False):
             
     return training_indice, training_label, validation_indice, validation_label        
         
-def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, go=False, fw = None):
-    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go)
+def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, go=False, motif = True, seq = True, fw = None):
+    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, seq = seq)
     print 'training', len(training_data)
     go_hid = 512
     kmer_hid = 512
@@ -727,6 +869,8 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
     clip_hid = 256
     rna_hid=64
     cnn_hid = 64
+    motif_hid = 64
+    seq_hid = 102
     training_indice, training_label, validation_indice, validation_label = split_training_validation(training_data["Y"])
     #x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size = 0.1)
     if go:
@@ -758,12 +902,25 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
         clip_data = []
         training_data["X_CLIP"] = []
     if rna:
-        rna_data, rna_scaler = preprocess_data(training_data["X_RNA"])
+        rna_data, rna_scaler = preprocess_data(training_data["X_RNA"], stand = True)
         rna_train = rna_data[training_indice]
         rna_validation = rna_data[validation_indice]        
         rna_net = get_rnn_fea(rna_train, sec_num_hidden = rna_hid, num_hidden = rna_hid*2)
         rna_data = []
         training_data["X_RNA"] = []
+    if motif:
+        motif_data, motif_scaler = preprocess_data(training_data["motif"], stand = True)
+        motif_train = motif_data[training_indice]
+        motif_validation = motif_data[validation_indice]
+        motif_net =  get_rnn_fea(motif_train, sec_num_hidden = motif_hid, num_hidden = motif_hid*2) #get_cnn_network()
+        motif_data = []
+        training_data["motif"] = []
+    if seq:
+        seq_data = training_data["seq"]
+        seq_train = seq_data[training_indice]
+        seq_validation = seq_data[validation_indice] 
+        seq_net =  get_cnn_network()
+        seq_data = []         
         
     y, encoder = preprocess_labels(training_label)
     val_y, encoder = preprocess_labels(validation_label, encoder = encoder)
@@ -809,8 +966,28 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
         total_hid = total_hid + rna_hid
         rna_train = []
         rna_validation = []
+    if motif:
+        training_net.append(motif_net)
+        training.append(motif_train)
+        validation.append(motif_validation)
+        total_hid = total_hid + motif_hid
+        motif_train = []
+        motif_validation = []
+    if seq:
+        training_net.append(seq_net)
+        training.append(seq_train)
+        validation.append(seq_validation)
+        total_hid = total_hid + seq_hid
+        seq_train = []
+        seq_validation = []        
         
     model.add(Merge(training_net, mode='concat'))
+    #model.add(Dense(total_hid, input_shape=(total_hid,)))
+    #model.add(Activation('relu'))
+    #model.add(PReLU())
+    #model.add(BatchNormalization(mode=2))
+    #model.add(Activation('relu'))
+    model.add(Dropout(0.5))
     
     model.add(Dense(2, input_shape=(total_hid,)))
     model.add(Activation('softmax'))
@@ -828,7 +1005,7 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
     training = []
     validation = []
     
-    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go)
+    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, seq = seq)
     
     true_y = test_data["Y"].copy()
     
@@ -847,8 +1024,15 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
         clip_test, clip_scaler = preprocess_data(test_data["X_CLIP"], scaler=clip_scaler)
         testing.append(clip_test)
     if rna:
-        rna_test, rna_scaler = preprocess_data(test_data["X_RNA"], scaler=rna_scaler)
+        rna_test, rna_scaler = preprocess_data(test_data["X_RNA"], scaler=rna_scaler, stand = True)
         testing.append(rna_test)
+    if motif:
+        motif_test, motif_scaler = preprocess_data(test_data["motif"], scaler=motif_scaler, stand = True)
+        testing.append(motif_test)
+    if seq:
+        seq_test = test_data["seq"]
+        testing.append(seq_test)
+        
     '''
     pdb.set_trace()
     get_feature = theano.function([model.layers[0].input],model.layers[8].get_output(train=False),allow_input_downcast=True)
@@ -887,7 +1071,7 @@ def read_protein_name(filename='proteinnames'):
             protein_dict[key_name] = values[1]
     return protein_dict
     
-def read_result_file(filename = 'result_file_mix_100'):
+def read_result_file(filename = 'result_file_seq_wohle_new'):
     results = {}
     with open(filename, 'r') as fp:
         index = 0
@@ -905,31 +1089,95 @@ def read_result_file(filename = 'result_file_mix_100'):
     return results
 
 def plot_parameter_bar(menMeans, xlabel):
-    methodlabel = ['k-mer', 'region type', 'clip-cobinding', 'structure', 'iDeep']
+    methodlabel = ['region type', 'clip-cobinding', 'structure', 'motif', 'CNN sequence', 'iDeep']
     
     #xval = [5, 10, 20, 30, 40, 50, 60,70]#, 80, 90]
-    width = 0.15
+    width = 0.10
     ind = np.arange(len(menMeans[0]))
     fig, ax = plt.subplots(figsize=(12,12))
     #pdb.set_trace()
     #plt.plot(xval,menMeans)
-    rects1 = plt.bar(ind, menMeans[0], width, color='r')
-    rects2 = plt.bar(ind +width, menMeans[1], width, color='g')
-    rects3 = plt.bar(ind +2*width, menMeans[2], width, color='y')
-    rects4 = plt.bar(ind+3*width, menMeans[3], width, color='b')
-    rects5 = plt.bar(ind+4*width, menMeans[4], width, color='k')
+    rects1 = plt.barh(ind, menMeans[0], width, color='r')
+    rects2 = plt.barh(ind +width, menMeans[1], width, color='g')
+    rects3 = plt.barh(ind +2*width, menMeans[2], width, color='y')
+    rects4 = plt.barh(ind+3*width, menMeans[3], width, color='b')
+    rects5 = plt.barh(ind+4*width, menMeans[4], width, color='m')
+    rects6 = plt.barh(ind+5*width, menMeans[5], width, color='c')
     #plt.title('stem cell circRNA vs other circRNA')
-    ax.set_ylabel('AUC', fontsize=20)
+    ax.set_xlabel('AUC', fontsize=20)
     #plt.xlabel('Number of trees', fontsize=20)
     #ax.set_ylim([0.6, 0.75])
-    ax.set_xticks(ind)
-    ax.set_xticklabels(xlabel, rotation=90 )
-    ax.legend((rects1[0], rects2[0], rects3[0], rects4[0], rects5[0]), ('k-mer', 'region type', 'clip-cobinding', 'structure', 'iDeep'))
+    ax.set_yticks(ind)
+    ax.set_yticklabels(xlabel )
+    #plt.margins(0.1)
+    ax.legend((rects1[0], rects2[0], rects3[0], rects4[0], rects5[0],  rects6[0]), ('region type', 'clip-cobinding', 'structure', 'motif', 'CNN sequence', 'iDeep'), 
+              loc='upper center', bbox_to_anchor=(0.5, 1.00), ncol=3, fancybox=True)
     plt.tight_layout()
     
     plt.show()
 
-def read_individual_auc(filename = 'result_file_all'):
+def plot_confusion_matrix(results, title='Confusion matrix'):
+    '''plt.matshow(df_confusion, cmap=cmap) # imshow
+    #plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(df_confusion.columns))
+    plt.xticks(tick_marks, df_confusion.columns, rotation=45)
+    plt.yticks(tick_marks, df_confusion.index)
+    #plt.tight_layout()
+    plt.ylabel(df_confusion.index.name)
+    plt.xlabel(df_confusion.columns.name)
+    plt.show()
+    '''
+    unique_conditions = ['region type', 'clip-cobinding', 'structure', 'motif', 'CNN sequence', 'kmer']
+    confusion = []
+    for i in range(len(results)):
+        tmp = []
+        for j in range(len(results)):
+            rval, pval = stats.pearsonr(results[i], results[j])
+            tmp.append(abs(rval))
+        confusion.append(tmp)
+    #pdb.set_trace()
+            
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    #res = ax.imshow(np.array(norm_conf), cmap=confusion_matrix.jet, interpolation='nearest')
+    res = ax.imshow(np.array(confusion), cmap=plt.cm.jet, 
+                interpolation='nearest')
+    cb = fig.colorbar(res)
+    plt.xticks(np.arange(len(unique_conditions)), unique_conditions)
+    plt.yticks(np.arange(len(unique_conditions)), unique_conditions)
+    for i, cas in enumerate(confusion ):
+        for j, c in enumerate(cas):
+            if c>0:
+                plt.text(j-.2, i+.2, round(c, 2), fontsize=14)
+    plt.title('Correlation between different modalities')
+    
+    plt.show() 
+
+    #plot_confusion_matrix(df_confusion)
+
+def plot_scatter(new_results):
+    #resuts =[]
+    region = new_results[0]
+    cnn = new_results[4]
+    motif = new_results[3]
+    inds = range(len(motif))
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+    #pdb.set_trace()
+    p1 = plt.plot(inds, cnn, marker='x', color='r')
+    p2 = plt.plot(region, inds, marker='o', color='y')
+    #plt.legend( (p1, p2), ('stem cell circRNAs', 'other circRNAs'), 1)
+    #plt.xlim(-2, 6)
+    #plt.xlim(0,14000)
+    
+    #plt.xlim(0,0.2)
+    plt.xlabel('Sequence using CNN')
+    plt.ylabel('k-mer using DBN')
+    #plt.legend( (p1[0], p2[0]), ('circularRNA', 'other lncRNAs'), 2)
+    plt.show()
+    
+def read_individual_auc(filename = 'result_file_all_new'):
     results = {}
     with open(filename, 'r') as fp:
         index = 0
@@ -941,7 +1189,7 @@ def read_individual_auc(filename = 'result_file_all'):
     
     return results
 
-def read_ideep_auc(filename = 'result_mix_auc'):
+def read_ideep_auc(filename = 'result_mix_auc_new'):
     results = {}
     with open(filename, 'r') as fp:
         index = 0
@@ -956,11 +1204,12 @@ def read_ideep_auc(filename = 'result_mix_auc'):
 
 def plot_ideep_indi_comp():
     proteins = read_protein_name()
-    ideep_resut = read_ideep_auc(filename='result_mix_auc')
+    ideep_resut = read_ideep_auc(filename='result_mix_auc_new')
+    #pdb.set_trace()
     indi_result = read_individual_auc()
     keys = indi_result.keys()
     keys.sort()
-    #pdb.set_trace()
+    
     new_results = []
     names = []
     for key in keys:
@@ -973,9 +1222,9 @@ def plot_ideep_indi_comp():
         tmp.append(float(ideep_resut[key]))
         #tmp = indi_result[key] + ideep_resut[key]
         new_results.append(tmp)
-    #pdb.set_trace()
+    pdb.set_trace()
     new_results = map(list, zip(*new_results))
-    
+    #plot_confusion_matrix(new_results)
     plot_parameter_bar(new_results, names)
             
 def plot_figure():
@@ -1038,24 +1287,112 @@ def run_get_sequence():
             RNA_bed_file = new_dir + beddir + '/positions.bedGraph.gz'
             #pdb.set_trace()
             get_seq_for_RNA_bed(RNA_bed_file, whole_seq)
-     
+            
+def read_fasta_file(fasta_file):
+    seq_dict = {}    
+    fp = gzip.open(fasta_file, 'r')
+    name = ''
+    name_list = []
+    for line in fp:
+        line = line.rstrip()
+        #distinguish header from sequence
+        if line[0]=='>': #or line.startswith('>')
+            #it is the header
+            name = line[2:] #discarding the initial >
+            name_list.append(name)
+            seq_dict[name] = ''
+        else:
+            seq_dict[name] = seq_dict[name] + line.upper().replace('U', 'T')
+    fp.close()
+    
+    return seq_dict, name_list
 
+def remove_some_files():
+    data_dir = '/home/panxy/eclipse/ideep/datasets/clip/'
+    protein_dirs = os.listdir(data_dir)
+    for protein in protein_dirs:
+        new_dir = data_dir + protein + '/5000/'
+        for beddir in os.listdir(new_dir):
+            print beddir
+            #pdb.set_trace()
+            path = new_dir + beddir
+            fas_name = os.path.join(path, 'matrix_GeneOntology.tab.gz')
+            os.remove(fas_name)
+            
+def get_binding_motif_fea():
+    data_dir = '/home/panxy/eclipse/ideep/datasets/clip/'
+    protein_dirs = os.listdir(data_dir)
+    for protein in protein_dirs:
+        new_dir = data_dir + protein + '/5000/'
+        for beddir in os.listdir(new_dir):
+            print beddir
+            #pdb.set_trace()
+            path = new_dir + beddir
+            fas_name = os.path.join(path, 'sequences.fa')
+            fw = open(fas_name, 'w')
+            seq_file = os.path.join(path, 'sequences.fa.gz')
+            seq_dict, name_list = read_fasta_file(seq_file)
+            
+            for name in name_list:
+                values = name.rstrip().split(';')
+                posi = values[0].split(',')
+                coor = posi[0] + ':' + posi[2] + '-' + posi[3]
+                fw.write('>' + coor + '\n')
+                fw.write(seq_dict[name] + '\n') 
+            fw.close()
+            
+            #pdb.set_trace()
+            clistr = './get_RNA_motif_fea.sh ' + path + '>/dev/null 2>&1'
+            f_cli = os.popen(clistr, 'r')
+            f_cli.close()
 
 def run_predict():
     data_dir = '/home/panxy/eclipse/ideep/datasets/clip'
-    fw = open('result_file', 'w')
+    fw = open('result_file_only_oli', 'w')
     for protein in os.listdir(data_dir):
         print protein
         fw.write(protein + '\t')
-        model = merge_seperate_network_with_multiple_features(protein, kmer=True, rg=True, clip=True, rna=True, go=False, fw = fw)
+        model = merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, motif = True, seq = True, fw = fw)
+        #run_individual_network(protein, kmer=False, rg=True, clip=True, rna=True, motif = True, seq = True, fw = fw)
+        #run_individual_network(protein, kmer=False, rg=False, clip=False, rna=False, go=False, motif = False, seq = False, oli = True, fw = fw)
     fw.close()
+
+def calculate_perofrmance(inputfile='../comp_result'):
+    result = []
+    with open(inputfile) as fp:
+        for line in fp:
+            values = line.rstrip().split('&')
+            result.append([float(values[0]), float(values[1])])
+    res_array = numpy.array(result)
+    print np.mean(res_array, axis=0)
+    print np.std(res_array, axis=0)
+
+def run_rnashapes():
+    sequence = 'UGGAGGGCUGUCAUUACCCUGCCUGACCCUCUAAUGCCUCUCAGUUCAAGGAGGCCACUGAGUGAAACUGAAGGCUGGUUUUCCUUGGAAGCCAGCGGCCC'
+    cmd = 'echo "%s" | RNAshapes -t %d -c %d -# %d' % (sequence,5, 10, 3)
+    out = sp.check_output(cmd, shell=True)
+    text = out.strip().split('\n')
+    seq_info = text[0]
+    if 'configured to print' in text[-1]:
+        struct_text = text[1:-1]
+    else:
+        struct_text = text[1:]
+    # shape:
+    shape_list = []
+    # extract the shape bracket notation
+    shape_list += [line.split()[2] for line in struct_text]
+    
+    pdb.set_trace()
          
 if __name__ == "__main__":
+    #labels = [1]*50 +[0] * 50
     #training_indice, training_label, validation_indice, validation_label = split_training_validation(labels)
     #pdb.set_trace()
+    #run_rnashapes()
     run_predict()
     #run_cnn()
     #run_get_sequence()
     #plot_figure()
     #plot_ideep_indi_comp()
-    
+    #get_binding_motif_fea()
+    #calculate_perofrmance()
