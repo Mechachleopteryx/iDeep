@@ -635,7 +635,7 @@ def calculate_auc(net, hid, train, test, true_y, train_y, rf = False, validation
     return auc, predict
 
 def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=False, motif = True, seq = True, oli = False, fw = None):
-    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, 
+    training_data = load_data("datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, 
                               seq = seq, oli = oli)
     print 'training', len(training_data)
     go_hid = 512
@@ -714,7 +714,7 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
     training_data.clear()
     
     
-    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, 
+    test_data = load_data("datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, 
                           seq = seq, oli = oli)
     
     true_y = test_data["Y"].copy()
@@ -790,16 +790,12 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
     else:
     	eg_array = np.array(eg_array).T
     	print eg_array.shape 
-    	#weight_score = get_meta_predictor(eg_array)
-    	weight_score = eg_array.mean(axis=1)
-    
-    	weight_auc = roc_auc_score(true_y, weight_score)
+
         
-    	print str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) +'\t'  + str(motif_auc) +'\t' + '\t'  + str(seq_auc) + str(weight_auc)
-    	fw.write(str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) + '\t'  + str(motif_auc) + '\t'  + str(seq_auc) +'\t' + str(weight_auc) +'\n')
+    	print str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) +'\t'  + str(motif_auc) +'\t'  + str(seq_auc)
+    	fw.write(str(rg_auc) + '\t' +  str(clip_auc) + '\t' +  str(rna_auc) + '\t'  + str(motif_auc) + '\t'  + str(seq_auc) +'\n')
     
     	mylabel = "\t".join(map(str, true_y))
-    	myprob = "\t".join(map(str, weight_score))
     	#myprob1 = "\t".join(map(str, kmer_predict))
     	myprob2 = "\t".join(map(str, rg_predict))
     	myprob3 = "\t".join(map(str, clip_predict))
@@ -808,7 +804,6 @@ def run_individual_network(protein, kmer=True, rg=True, clip=True, rna=True, go=
         myprob6 = "\t".join(map(str, seq_predict))
         
     	fw.write(mylabel + '\n')
-    	fw.write(myprob + '\n')
     	#fw.write(myprob1 + '\n')
     	fw.write(myprob2 + '\n')
     	fw.write(myprob3 + '\n')
@@ -861,7 +856,7 @@ def split_training_validation(classes, validation_size = 0.2, shuffle = False):
     return training_indice, training_label, validation_indice, validation_label        
         
 def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, go=False, motif = True, seq = True, fw = None):
-    training_data = load_data("../datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, seq = seq)
+    training_data = load_data("datasets/clip/%s/5000/training_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, seq = seq)
     print 'training', len(training_data)
     go_hid = 512
     kmer_hid = 512
@@ -1005,7 +1000,7 @@ def merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, 
     training = []
     validation = []
     
-    test_data = load_data("../datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, seq = seq)
+    test_data = load_data("datasets/clip/%s/5000/test_sample_0" % protein, kmer=kmer, rg=rg, clip=clip, rna=rna, go=go, motif=motif, seq = seq)
     
     true_y = test_data["Y"].copy()
     
