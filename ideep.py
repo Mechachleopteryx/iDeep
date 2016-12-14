@@ -1347,8 +1347,6 @@ def run_predict():
         print protein
         fw.write(protein + '\t')
         model = merge_seperate_network_with_multiple_features(protein, kmer=False, rg=True, clip=True, rna=True, motif = True, seq = True, fw = fw)
-        #run_individual_network(protein, kmer=False, rg=True, clip=True, rna=True, motif = True, seq = True, fw = fw)
-        #run_individual_network(protein, kmer=False, rg=False, clip=False, rna=False, go=False, motif = False, seq = False, oli = True, fw = fw)
     fw.close()
 
 def calculate_perofrmance(inputfile='../comp_result'):
@@ -1361,32 +1359,7 @@ def calculate_perofrmance(inputfile='../comp_result'):
     print np.mean(res_array, axis=0)
     print np.std(res_array, axis=0)
 
-def run_rnashapes():
-    sequence = 'UGGAGGGCUGUCAUUACCCUGCCUGACCCUCUAAUGCCUCUCAGUUCAAGGAGGCCACUGAGUGAAACUGAAGGCUGGUUUUCCUUGGAAGCCAGCGGCCC'
-    cmd = 'echo "%s" | RNAshapes -t %d -c %d -# %d' % (sequence,5, 10, 3)
-    out = sp.check_output(cmd, shell=True)
-    text = out.strip().split('\n')
-    seq_info = text[0]
-    if 'configured to print' in text[-1]:
-        struct_text = text[1:-1]
-    else:
-        struct_text = text[1:]
-    # shape:
-    shape_list = []
-    # extract the shape bracket notation
-    shape_list += [line.split()[2] for line in struct_text]
-    
-    pdb.set_trace()
          
 if __name__ == "__main__":
-    #labels = [1]*50 +[0] * 50
-    #training_indice, training_label, validation_indice, validation_label = split_training_validation(labels)
-    #pdb.set_trace()
-    #run_rnashapes()
     run_predict()
-    #run_cnn()
-    #run_get_sequence()
-    #plot_figure()
-    #plot_ideep_indi_comp()
-    #get_binding_motif_fea()
-    #calculate_perofrmance()
+
