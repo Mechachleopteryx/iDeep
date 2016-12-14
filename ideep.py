@@ -16,8 +16,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D,Convolution1D
 from keras import regularizers
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.constraints import maxnorm
-from keras.optimizers import kl_divergence
-from seya.layers.recurrent import Bidirectional
+#from keras.optimizers import kl_divergence
 from sklearn import svm, grid_search
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -1342,8 +1341,8 @@ def get_binding_motif_fea():
             f_cli.close()
 
 def run_predict():
-    data_dir = '/home/panxy/eclipse/ideep/datasets/clip'
-    fw = open('result_file_only_oli', 'w')
+    data_dir = 'datasets/clip'
+    fw = open('result_file', 'w')
     for protein in os.listdir(data_dir):
         print protein
         fw.write(protein + '\t')
