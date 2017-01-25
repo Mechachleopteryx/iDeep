@@ -1,0 +1,27 @@
+AME (Analysis of Motif Enrichment): Compiled on Dec 13 2016 at 17:34:01
+------------------------------
+Copyright (c) Robert McLeay <r.mcleay@imb.uq.edu.au> & Timothy Bailey <t.bailey@imb.uq.edu.au>, 2009.
+
+Command line
+ame --control shuff_seq -o ./out_cnn/29_ICLIP_TIAL1_hg19/enrich_output.txt seq_enrich ./out_cnn/29_ICLIP_TIAL1_hg19/filters_meme.txt
+
+Not in partition maximization mode. Fixing partition at the number of primary sequences (1000).
+
+Threshold p-value for reporting results: 0.05
+Motif p-values are corrected by #Motifs * #ThresholdsTested - (102 * 1 = 102)
+
+1. Fisher's exact test p-value of motif filter94  top 1000 seqs: 1.034e-09 (Corrected p-value: 1.054e-07)
+2. Fisher's exact test p-value of motif filter32  top 1000 seqs: 1.928e-07 (Corrected p-value: 1.967e-05)
+3. Fisher's exact test p-value of motif filter98  top 1000 seqs: 2.619e-07 (Corrected p-value: 2.671e-05)
+4. Fisher's exact test p-value of motif filter68  top 1000 seqs: 3.83e-06 (Corrected p-value: 0.0003906)
+5. Fisher's exact test p-value of motif filter40  top 1000 seqs: 2.554e-05 (Corrected p-value: 0.002602)
+6. Fisher's exact test p-value of motif filter7  top 1000 seqs: 2.988e-05 (Corrected p-value: 0.003043)
+7. Fisher's exact test p-value of motif filter52  top 1000 seqs: 4.215e-05 (Corrected p-value: 0.00429)
+8. Fisher's exact test p-value of motif filter64  top 1000 seqs: 6.207e-05 (Corrected p-value: 0.006311)
+9. Fisher's exact test p-value of motif filter65  top 1000 seqs: 6.369e-05 (Corrected p-value: 0.006476)
+10. Fisher's exact test p-value of motif filter50  top 1000 seqs: 6.88e-05 (Corrected p-value: 0.006993)
+11. Fisher's exact test p-value of motif filter28  top 1000 seqs: 0.00012 (Corrected p-value: 0.01216)
+12. Fisher's exact test p-value of motif filter20  top 1000 seqs: 0.0001356 (Corrected p-value: 0.01373)
+13. Fisher's exact test p-value of motif filter27  top 1000 seqs: 0.0001678 (Corrected p-value: 0.01697)
+14. Fisher's exact test p-value of motif filter13  top 1000 seqs: 0.0002277 (Corrected p-value: 0.02296)
+15. Fisher's exact test p-value of motif filter44  top 1000 seqs: 0.0003729 (Corrected p-value: 0.03732)
