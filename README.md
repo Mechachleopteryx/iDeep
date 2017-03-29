@@ -17,6 +17,6 @@ Content <br>
 ./make_feature_table.py: it is modified based on <a href=https://github.com/aertslab/primescore>primescore</a>. <br>
 
 <b>Reference</b> <br>
-Xiaoyong Pan and Hong-Bin Shen. RNA-protein binding motifs mining with a new hybrid deep learning based cross-domain knowledge integration approach. 201718:136. DOI: 10.1186/s12859-017-1561-8
+Xiaoyong Pan and Hong-Bin Shen. RNA-protein binding motifs mining with a new hybrid deep learning based cross-domain knowledge integration approach. BMC Bioinformatics, 2017, 18:136. DOI: 10.1186/s12859-017-1561-8
 
 Contact: Xiaoyong Pan (xypan172436atgmail.com)
