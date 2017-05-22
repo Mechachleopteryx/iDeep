@@ -1548,8 +1548,8 @@ def run_ideep(args):
     
 
 def parse_arguments(parser):
-    parser.add_argument('--data_dir', type=str, metavar='<data_directory>', help='Under this directory, you should have sequences.fa.gz, \
-    matrix_Response.tab.gz, matrix_RegionType.tab.gz, matrix_RNAfold.tab.gzmatrix_Cobinding.tab.gz, motif_fea.gz')
+    parser.add_argument('--data_dir', type=str, metavar='<data_directory>', help='Under this directory, you should have feature file: sequences.fa.gz, \
+    matrix_Response.tab.gz, matrix_RegionType.tab.gz, matrix_RNAfold.tab.gzmatrix_Cobinding.tab.gz, motif_fea.gz, and label file matrix_Response.tab.gz with 0 and 1 ')
     parser.add_argument('--train', type=bool, default=True, help='use this option for training model')
     parser.add_argument('--model_dir', type=str, default='models', help='The directory to save the trained models for future prediction')
     parser.add_argument('--predict', type=bool, default=False,  help='Predicting the RNA-protein binding sites for your input sequences, if using train, then it will be False')
