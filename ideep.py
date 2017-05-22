@@ -38,6 +38,7 @@ from sklearn import metrics
 from sklearn.metrics import roc_auc_score
 from sklearn.cross_validation import train_test_split
 from sklearn.grid_search import GridSearchCV
+from sklearn.externals import joblib 
 from scipy import sparse
 import pdb
 from math import  sqrt
@@ -45,6 +46,7 @@ from sklearn.metrics import roc_curve, auc
 import theano
 import subprocess as sp
 import scipy.stats as stats
+import argparse
 
 def calculate_performace(test_num, pred_y,  labels):
     tp =0
@@ -327,7 +329,7 @@ def get_4_nucleotide_composition(tris, seq, pythoncount = True):
     return tri_feature
 
 
-def load_data(path, kmer=True, rg=True, clip=True, rna=True, go=False, motif= True, seq = True, oli = True):
+def load_data(path, kmer=False, rg=True, clip=True, rna=True, go=False, motif= True, seq = True, oli = False, test = False):
     """
         Load data matrices from the specified folder.
     """
@@ -352,8 +354,10 @@ def load_data(path, kmer=True, rg=True, clip=True, rna=True, go=False, motif= Tr
                                          , skiprows=1, usecols=range(1,103))
     if seq: data["seq"] = read_seq(os.path.join(path, 'sequences.fa.gz'))
     if oli: data["oli"] = read_oli_feature(os.path.join(path, 'sequences.fa.gz'))
-    
-    data["Y"] = np.loadtxt(gzip.open(os.path.join(path,
+    if test:
+        data["Y"] = []
+    else:    
+        data["Y"] = np.loadtxt(gzip.open(os.path.join(path,
                                             "matrix_Response.tab.gz")),
                                             skiprows=1)
     #data["Y"] = data["Y"].reshape((len(data["Y"]), 1))
@@ -1359,7 +1363,211 @@ def calculate_perofrmance(inputfile='../comp_result'):
     print np.mean(res_array, axis=0)
     print np.std(res_array, axis=0)
 
+
+
+def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False, seq = True, batch_size=100, nb_epoch=20):
+    training_data = load_data(data_dir, rg=rg, clip=clip, rna=rna, motif=motif, seq = seq)
+    print 'training', len(training_data)
+    rg_hid = 128
+    clip_hid = 256
+    rna_hid=64
+    cnn_hid = 64
+    motif_hid = 64
+    seq_hid = 102
+    training_indice, training_label, validation_indice, validation_label = split_training_validation(training_data["Y"])
+    if rg:
+        rg_data, rg_scaler = preprocess_data(training_data["X_RG"])
+        joblib.dump(rg_scaler, os.path.join(model_dir,'rg_scaler.pkl')) 
+        rg_train = rg_data[training_indice]
+        rg_validation = rg_data[validation_indice]
+        rg_net = get_rnn_fea(rg_train, sec_num_hidden = rg_hid, num_hidden = rg_hid*2)
+        rg_data = []
+        training_data["X_RG"] = []
+    if clip:
+        clip_data, clip_scaler = preprocess_data(training_data["X_CLIP"])
+        joblib.dump(rg_scaler, os.path.join(model_dir,'clip_scaler.pkl')) 
+        clip_train = clip_data[training_indice]
+        clip_validation = clip_data[validation_indice]
+        clip_net = get_rnn_fea(clip_train, sec_num_hidden = clip_hid, num_hidden = clip_hid*3)
+        clip_data = []
+        training_data["X_CLIP"] = []
+    if rna:
+        rna_data, rna_scaler = preprocess_data(training_data["X_RNA"], stand = True)
+        joblib.dump(rg_scaler, os.path.join(model_dir,'rna_scaler.pkl')) 
+        rna_train = rna_data[training_indice]
+        rna_validation = rna_data[validation_indice]        
+        rna_net = get_rnn_fea(rna_train, sec_num_hidden = rna_hid, num_hidden = rna_hid*2)
+        rna_data = []
+        training_data["X_RNA"] = []
+    if motif:
+        motif_data, motif_scaler = preprocess_data(training_data["motif"], stand = True)
+        joblib.dump(rg_scaler, os.path.join(model_dir,'motif_scaler.pkl'))
+        motif_train = motif_data[training_indice]
+        motif_validation = motif_data[validation_indice]
+        motif_net =  get_rnn_fea(motif_train, sec_num_hidden = motif_hid, num_hidden = motif_hid*2) #get_cnn_network()
+        motif_data = []
+        training_data["motif"] = []
+    if seq:
+        seq_data = training_data["seq"]
+        seq_train = seq_data[training_indice]
+        seq_validation = seq_data[validation_indice] 
+        seq_net =  get_cnn_network()
+        seq_data = []         
+        
+    y, encoder = preprocess_labels(training_label)
+    val_y, encoder = preprocess_labels(validation_label, encoder = encoder)
+    training_data.clear()
+    
+    model = Sequential()
+    training_net=[]
+    training =[]
+    validation = []
+    total_hid =0
+    if rg:
+        training_net.append(rg_net)
+        training.append(rg_train)
+        validation.append(rg_validation)
+        total_hid = total_hid + rg_hid
+        rg_train = []
+        rg_validation = []
+    if clip:
+        training_net.append(clip_net)
+        training.append(clip_train)
+        validation.append(clip_validation)
+        total_hid = total_hid + clip_hid
+        clip_train = []
+        clip_validation = []
+    if rna:
+        training_net.append(rna_net)
+        training.append(rna_train)
+        validation.append(rna_validation)
+        total_hid = total_hid + rna_hid
+        rna_train = []
+        rna_validation = []
+    if motif:
+        training_net.append(motif_net)
+        training.append(motif_train)
+        validation.append(motif_validation)
+        total_hid = total_hid + motif_hid
+        motif_train = []
+        motif_validation = []
+    if seq:
+        training_net.append(seq_net)
+        training.append(seq_train)
+        validation.append(seq_validation)
+        total_hid = total_hid + seq_hid
+        seq_train = []
+        seq_validation = []        
+        
+    model.add(Merge(training_net, mode='concat'))
+    model.add(Dropout(0.5))
+    
+    model.add(Dense(2, input_shape=(total_hid,)))
+    model.add(Activation('softmax'))
+    
+    #sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    
+    
+    #checkpointer = ModelCheckpoint(filepath="models/bestmodel.hdf5", verbose=0, save_best_only=True)
+    earlystopper = EarlyStopping(monitor='val_loss', patience=5, verbose=0)
+    print 'model training'
+    model.fit(training, y, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_data=(validation, val_y), callbacks=[earlystopper])
+    
+    joblib.dump(rg_scaler, os.path.join(model_dir,'model.pkl'))
+    
+    return model
+
+def test_ideep(data_dir, model_dir, outfile = 'prediction.txt', rg=True, clip=True, rna=True, motif=False, seq = True):
+    test_data = load_data(data_dir, rg=rg, clip=clip, rna=rna, motif=motif, seq = seq, test = True)
+    
+    #true_y = test_data["Y"].copy()
+    
+    print 'predicting'
+    testing = []
+    if rg:
+        rg_scaler = joblib.load( os.path.join(model_dir,'rg_scaler.pkl'))
+        rg_test, rg_scaler = preprocess_data(test_data["X_RG"], scaler=rg_scaler)
+        testing.append(rg_test)
+    if clip:
+        clip_scaler = joblib.load( os.path.join(model_dir,'clip_scaler.pkl'))
+        clip_test, clip_scaler = preprocess_data(test_data["X_CLIP"], scaler=clip_scaler)
+        testing.append(clip_test)
+    if rna:
+        rna_scaler = joblib.load( os.path.join(model_dir,'rna_scaler.pkl'))
+        rna_test, rna_scaler = preprocess_data(test_data["X_RNA"], scaler=rna_scaler, stand = True)
+        testing.append(rna_test)
+    if motif:
+        motif_scaler = joblib.load( os.path.join(model_dir,'motif_scaler.pkl'))
+        motif_test, motif_scaler = preprocess_data(test_data["motif"], scaler=motif_scaler, stand = True)
+        testing.append(motif_test)
+    if seq:
+        seq_test = test_data["seq"]
+        testing.append(seq_test)
+    
+    model = joblib.load( os.path.join(model_dir,'model.pkl'))       
+    predictions = model.predict_proba(testing)
+    #pdb.set_trace()
+    #auc = roc_auc_score(true_y, predictions[:, 1])
+    #print "Test AUC: ", auc    
+    #fw.write(str(auc) + '\n')
+    #mylabel = "\t".join(map(str, true_y))
+    fw = open(outfile, 'w')
+    myprob = "\n".join(map(str, predictions[:, 1]))
+    #fw.write(mylabel + '\n')
+    fw.write(myprob)
+    fw.close()
+
+
+def run_ideep(args):
+    data_dir = parser.data_dir
+    ensemble = parser.ensemble
+    out_file = parser.out_file
+    train = parser.train
+    model_dir = parser.model_dir
+    predict = parser.predict
+    seq = parser.seq
+    region_type = parser.region_type
+    cobinding = parser.cobinding
+    structure = parser.structure
+    motif = parser.motif
+    batch_size = parser.batch_size
+    n_epochs = parser.n_epochs
+    
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    
+    
+    if train:
+        print 'model training'
+        train_ideep(data_dir, model_dir, rg=cobinding, clip=cobinding, rna=structure, motif = motif, seq = seq, batch_size= batch_size, n_epochs = n_epochs)
+    else:
+        print 'model prediction'
+        test_ideep(data_dir, model_dir, outfile = outfile, rg=cobinding, clip=cobinding, rna=structure, motif = motif, seq = seq)
+    
+    
+
+def parse_arguments(parser):
+    parser.add_argument('--data_dir', type=str, metavar='<data_directory>', help='Under this directory, you should have sequences.fa.gz, \
+    matrix_Response.tab.gz, matrix_RegionType.tab.gz, matrix_RNAfold.tab.gzmatrix_Cobinding.tab.gz, motif_fea.gz')
+    parser.add_argument('--train', type=bool, default=True, help='use this option for training model')
+    parser.add_argument('--model_dir', type=str, default='models', help='The directory to save the trained models for future prediction')
+    parser.add_argument('--predict', type=bool, default=False,  help='Predicting the RNA-protein binding sites for your input sequences, if using train, then it will be False')
+    parser.add_argument('--out_file', type=str, default='prediction.txt', help='The output file used to store the prediction probability of testing data')
+    parser.add_argument('--seq', type=bool, default=True, help='The sequences feature for Convolutional neural network')
+    parser.add_argument('--region_type', type=bool, default=True, help='The modularity of region type (types (exon, intron, 5‘UTR, 3‘UTR, CDS)')
+    parser.add_argument('--cobinding', type=bool, default=True, help='The modularity of cobinding')
+    parser.add_argument('--structure', type=bool, default=True, help='The modularity of structure that is probability of RNA secondary structure')
+    parser.add_argument('--motif', type=bool, default=False, help='The modularity of motif scores')
+    parser.add_argument('--batch_size', type=int, default=100, help='The size of a single mini-batch (default value: 100)')
+    parser.add_argument('--n_epochs', type=int, default=20, help='The number of training epochs (default value: 20)')
+    args = parser.parse_args()
+    return args
+
          
 if __name__ == "__main__":
-    run_predict()
+    parser = argparse.ArgumentParser()
+    args = parse_arguments(parser)
+    run_ideep(args)
+    #run_predict()
 
