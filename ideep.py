@@ -1555,7 +1555,7 @@ def parse_arguments(parser):
     parser.add_argument('--predict', type=bool, default=False,  help='Predicting the RNA-protein binding sites for your input sequences, if using train, then it will be False')
     parser.add_argument('--out_file', type=str, default='prediction.txt', help='The output file used to store the prediction probability of testing data')
     parser.add_argument('--seq', type=bool, default=True, help='The sequences feature for Convolutional neural network')
-    parser.add_argument('--region_type', type=bool, default=True, help='The modularity of region type (types (exon, intron, 5‘UTR, 3‘UTR, CDS)')
+    parser.add_argument('--region_type', type=bool, default=True, help='The modularity of region type (types (exon, intron, 5UTR, 3UTR, CDS)')
     parser.add_argument('--cobinding', type=bool, default=True, help='The modularity of cobinding')
     parser.add_argument('--structure', type=bool, default=True, help='The modularity of structure that is probability of RNA secondary structure')
     parser.add_argument('--motif', type=bool, default=False, help='The modularity of motif scores')
