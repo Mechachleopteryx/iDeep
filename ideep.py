@@ -1521,7 +1521,6 @@ def test_ideep(data_dir, model_dir, outfile = 'prediction.txt', rg=True, clip=Tr
 
 def run_ideep(args):
     data_dir = parser.data_dir
-    ensemble = parser.ensemble
     out_file = parser.out_file
     train = parser.train
     model_dir = parser.model_dir
