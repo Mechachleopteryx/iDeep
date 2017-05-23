@@ -1365,7 +1365,7 @@ def calculate_perofrmance(inputfile='../comp_result'):
 
 
 
-def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False, seq = True, batch_size=100, nb_epoch=20):
+def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False, seq = True, batch_size=100, n_epochs=20):
     training_data = load_data(data_dir, rg=rg, clip=clip, rna=rna, motif=motif, seq = seq)
     print 'training', len(training_data)
     rg_hid = 128
@@ -1519,7 +1519,7 @@ def test_ideep(data_dir, model_dir, outfile = 'prediction.txt', rg=True, clip=Tr
     fw.close()
 
 
-def run_ideep(args):
+def run_ideep(parser):
     data_dir = parser.data_dir
     out_file = parser.out_file
     train = parser.train
