@@ -7,6 +7,7 @@ we perform experiments on large-scale CLIP-seq datasets. The comprehensive resul
 # Dependency <br>
 <a href=https://github.com/fchollet/keras/>keras 1.0.0 library</a> <br>
 <a href=https://github.com/scikit-learn/scikit-learn>sklearn</a> <br>
+h5py: pip install h5py <br>
 
 # Content <br>
 ./datasets: the training and testing dataset with extracted features, label and sequence. <br>
