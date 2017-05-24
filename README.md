@@ -36,6 +36,6 @@ python ideep.py --train=True --data_dir=datasets/clip/10_PARCLIP_ELAVL1A_hg19/50
 <br><br>
 
 <b>Reference</b> <br>
-Xiaoyong Pan and Hong-Bin Shen. RNA-protein binding motifs mining with a new hybrid deep learning based cross-domain knowledge integration approach. BMC Bioinformatics, 2017, 18:136. DOI: 10.1186/s12859-017-1561-8
+Xiaoyong Pan and Hong-Bin Shen. <a href=https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-017-1561-8>RNA-protein binding motifs mining with a new hybrid deep learning based cross-domain knowledge integration approach</a>. BMC Bioinformatics, 2017, 18:136. DOI: 10.1186/s12859-017-1561-8
 
 Contact: Xiaoyong Pan (xypan172436atgmail.com)
