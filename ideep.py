@@ -1,7 +1,7 @@
 import sys
 import os
 import numpy
-#sys.path.insert(0, '/usr/local/lib/python2.7/dist-packages/Keras-0.3.1-py2.7.egg')
+#sys.path.insert(0, '/usr/local/lib/python2.7/dist-packages/Keras-1.2.2-py2.7.egg/')
 from keras.models import Sequential, model_from_config
 from keras.layers.core import Dense, Dropout, Activation, Flatten, Merge
 from keras.layers.normalization import BatchNormalization
@@ -1366,7 +1366,7 @@ def calculate_perofrmance(inputfile='../comp_result'):
 
 
 
-def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False, seq = True, batch_size=100, n_epochs=20):
+def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False, seq = True, batch_size=100, nb_epoch=20):
     training_data = load_data(data_dir, rg=rg, clip=clip, rna=rna, motif=motif, seq = seq)
     print 'training', len(training_data)
     rg_hid = 128
@@ -1386,7 +1386,7 @@ def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False
         training_data["X_RG"] = []
     if clip:
         clip_data, clip_scaler = preprocess_data(training_data["X_CLIP"])
-        joblib.dump(rg_scaler, os.path.join(model_dir,'clip_scaler.pkl')) 
+        joblib.dump(clip_scaler, os.path.join(model_dir,'clip_scaler.pkl')) 
         clip_train = clip_data[training_indice]
         clip_validation = clip_data[validation_indice]
         clip_net = get_rnn_fea(clip_train, sec_num_hidden = clip_hid, num_hidden = clip_hid*3)
@@ -1394,7 +1394,7 @@ def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False
         training_data["X_CLIP"] = []
     if rna:
         rna_data, rna_scaler = preprocess_data(training_data["X_RNA"], stand = True)
-        joblib.dump(rg_scaler, os.path.join(model_dir,'rna_scaler.pkl')) 
+        joblib.dump(rna_scaler, os.path.join(model_dir,'rna_scaler.pkl')) 
         rna_train = rna_data[training_indice]
         rna_validation = rna_data[validation_indice]        
         rna_net = get_rnn_fea(rna_train, sec_num_hidden = rna_hid, num_hidden = rna_hid*2)
@@ -1402,7 +1402,7 @@ def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False
         training_data["X_RNA"] = []
     if motif:
         motif_data, motif_scaler = preprocess_data(training_data["motif"], stand = True)
-        joblib.dump(rg_scaler, os.path.join(model_dir,'motif_scaler.pkl'))
+        joblib.dump(motif_scaler, os.path.join(model_dir,'motif_scaler.pkl'))
         motif_train = motif_data[training_indice]
         motif_validation = motif_data[validation_indice]
         motif_net =  get_rnn_fea(motif_train, sec_num_hidden = motif_hid, num_hidden = motif_hid*2) #get_cnn_network()
@@ -1537,13 +1537,15 @@ def run_ideep(parser):
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     
-    
+    if predict:
+	train = False
+ 
     if train:
         print 'model training'
-        train_ideep(data_dir, model_dir, rg=cobinding, clip=cobinding, rna=structure, motif = motif, seq = seq, batch_size= batch_size, n_epochs = n_epochs)
+        train_ideep(data_dir, model_dir, rg=cobinding, clip=cobinding, rna=structure, motif = motif, seq = seq, batch_size= batch_size, nb_epoch = n_epochs)
     else:
         print 'model prediction'
-        test_ideep(data_dir, model_dir, outfile = outfile, rg=cobinding, clip=cobinding, rna=structure, motif = motif, seq = seq)
+        test_ideep(data_dir, model_dir, outfile = out_file, rg=cobinding, clip=cobinding, rna=structure, motif = motif, seq = seq)
     
     
 
