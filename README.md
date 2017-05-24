@@ -31,13 +31,13 @@ matrix_RegionType.tab.gz, matrix_RNAfold.tab.gz, matrix_Cobinding.tab.gz, motif_
 # Use example
 <b>1.</b> Train the model using your data (currently only support fix-length sequences, it defaults to use sequence, region type, structure, clip cobidning modularity): <br>
 python ideep.py --train=True --data_dir=datasets/clip/10_PARCLIP_ELAVL1A_hg19/5000/training_sample_0/ --model_dir=models
-<br>
+<br> <br>
 --model_dir: the dir used to save the trained model, which is used for prediction step. <br>
  --data_dir configure your dir that stores <b>training</b> featrues file (sequences.fa.gz, matrix_RegionType.tab.gz, matrix_RNAfold.tab.gz, matrix_Cobinding.tab.gz) and label file (matrix_Response.tab.gz). <br>
 <br>
 <b>2.</b> predict the binding probability for your sequences (you need use the same dir for saved models in training step): <br>
  python ideep.py --predict=True --data_dir=datasets/clip/10_PARCLIP_ELAVL1A_hg19/5000/test_sample_0/ --model_dir=models --out_file=YOUR_OUTFILE
-<br>
+<br> <br>
 --model_dir: The saved dir for models in training step. <br>
 --data_dir: configure your dir that stores <b>testing</b> featrues file (sequences.fa.gz, matrix_RegionType.tab.gz, matrix_RNAfold.tab.gz, matrix_Cobinding.tab.gz), and the prediction probability for your sequences are saved in <YOUR_OUTFILE>
 <br>
