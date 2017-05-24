@@ -28,7 +28,7 @@ In our default setting, we will use seq, region_type, cobinding and structure, t
 matrix_RegionType.tab.gz, matrix_RNAfold.tab.gz, matrix_Cobinding.tab.gz, motif_fea.gz, and label file matrix_Response.tab.gz with 0 and 1. If you set the corrsponding flag to be TRUE, you need have the corresponding data.
 
 # Use example
-1. Train the model using your data (currently only support fix-length sequences): <br>
+1. Train the model using your data (currently only support fix-length sequences, it defaults to use sequence, region type, structure, clip cobidning modularity): <br>
 python ideep.py --train=True --data_dir=datasets/clip/10_PARCLIP_ELAVL1A_hg19/5000/training_sample_0/ --model_dir=models
 <br><br>
 2. predict the binding probability for your sequences (you need use the same dir for saved models in training step): <br>
