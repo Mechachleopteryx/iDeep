@@ -16,6 +16,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D,Convolution1D
 from keras import regularizers
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.constraints import maxnorm
+from keras.models import load_model
 #from keras.optimizers import kl_divergence
 from sklearn import svm, grid_search
 from sklearn.preprocessing import LabelEncoder
@@ -1473,8 +1474,8 @@ def train_ideep(data_dir, model_dir, rg=True, clip=True, rna=True, motif = False
     earlystopper = EarlyStopping(monitor='val_loss', patience=5, verbose=0)
     print 'model training'
     model.fit(training, y, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_data=(validation, val_y), callbacks=[earlystopper])
-    
-    joblib.dump(rg_scaler, os.path.join(model_dir,'model.pkl'))
+    model.save(os.path.join(model_dir,'model.pkl'))
+    #joblib.dump(model, os.path.join(model_dir,'model.pkl'))
     
     return model
 
@@ -1504,8 +1505,8 @@ def test_ideep(data_dir, model_dir, outfile = 'prediction.txt', rg=True, clip=Tr
     if seq:
         seq_test = test_data["seq"]
         testing.append(seq_test)
-    
-    model = joblib.load( os.path.join(model_dir,'model.pkl'))       
+    model = load_model(os.path.join(model_dir,'model.pkl')) 
+    #model = joblib.load( os.path.join(model_dir,'model.pkl'))       
     predictions = model.predict_proba(testing)
     #pdb.set_trace()
     #auc = roc_auc_score(true_y, predictions[:, 1])
