@@ -94,31 +94,6 @@ def merge_seperate_network(X_train1, X_train2, Y_train):
     
     return model
 
-def get_blend_data(j, clf, skf, X_test, X_dev, Y_dev, blend_train, blend_test):
-        print 'Training classifier [%s]' % (j)
-        blend_test_j = np.zeros((X_test.shape[0], len(skf))) # Number of testing data x Number of folds , we will take the mean of the predictions later
-        for i, (train_index, cv_index) in enumerate(skf):
-            print 'Fold [%s]' % (i)
-            
-            # This is the training and validation set
-            X_train = X_dev[train_index]
-            Y_train = Y_dev[train_index]
-            X_cv = X_dev[cv_index]
-            Y_cv = Y_dev[cv_index]
-            
-            clf.fit(X_train, Y_train)
-            
-            # This output will be the basis for our blended classifier to train against,
-            # which is also the output of our classifiers
-            #blend_train[cv_index, j] = clf.predict(X_cv)
-            #blend_test_j[:, i] = clf.predict(X_test)
-            blend_train[cv_index, j] = clf.predict_proba(X_cv)[:,1]
-            blend_test_j[:, i] = clf.predict_proba(X_test)[:,1]
-        # Take the mean of the predictions of the cross validation set
-        blend_test[:, j] = blend_test_j.mean(1)
-    
-        print 'Y_dev.shape = %s' % (Y_dev.shape)
-
 def centrality_scores(X, alpha=0.85, max_iter=100, tol=1e-10):
     """Power iteration computation of the principal eigenvector
 
