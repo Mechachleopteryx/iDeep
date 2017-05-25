@@ -39,7 +39,7 @@ python ideep.py --train=True --data_dir=datasets/clip/10_PARCLIP_ELAVL1A_hg19/50
  python ideep.py --predict=True --data_dir=datasets/clip/10_PARCLIP_ELAVL1A_hg19/5000/test_sample_0/ --model_dir=models --out_file=YOUR_OUTFILE
 <br> <br>
 --model_dir: The saved dir for models in training step. <br>
---data_dir: configure your dir that contains <b>testing</b> featrues file (sequences.fa.gz, matrix_RegionType.tab.gz, matrix_RNAfold.tab.gz, matrix_Cobinding.tab.gz), and the prediction probability for your sequences are saved in <YOUR_OUTFILE>
+--data_dir: configure your dir that contains <b>testing</b> featrues file (sequences.fa.gz, matrix_RegionType.tab.gz, matrix_RNAfold.tab.gz, matrix_Cobinding.tab.gz), and the prediction probability for your sequences are saved in <YOUR_OUTFILE>, each line corresponds to the preobability of being RBP binding site for the sequence in fasta file.
 <br>
 
 <b>Reference</b> <br>
