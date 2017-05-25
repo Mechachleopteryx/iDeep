@@ -479,10 +479,6 @@ def get_cnn_network():
     '''
     print 'configure cnn network'
     nbfilter = 102
-    #forward_lstm = LSTM(input_dim=nbfilter, output_dim=nbfilter, return_sequences=True)
-    #backward_lstm = LSTM(input_dim=nbfilter, output_dim=nbfilter, return_sequences=True)
-    #brnn = Bidirectional(forward=forward_lstm, backward=backward_lstm, return_sequences=True)
-    #brnn = Merge([forward_lstm, backward_lstm], mode='concat', concat_axis=-1)
 
     model = Sequential()
     model.add(Convolution1D(input_dim=4,input_length=107,
@@ -495,10 +491,6 @@ def get_cnn_network():
     model.add(MaxPooling1D(pool_length=3))
     
     model.add(Dropout(0.5))
-
-    #model.add(brnn)
-
-    #model.add(Dropout(0.5))
     
     model.add(Flatten())
     
