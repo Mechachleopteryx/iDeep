@@ -5,9 +5,10 @@ not only learn the hidden feature patterns from individual source of data, but a
 we perform experiments on large-scale CLIP-seq datasets. The comprehensive results indicated the huge advantage of iDeep, which performs much better than the state-of-the-art methods. 
  <br><br>
 # Dependency <br>
-<a href=https://github.com/fchollet/keras/>keras 1.0.0 library</a> <br>
+<a href=https://github.com/fchollet/keras/>keras 1.2.0 library</a> <br>
 <a href=https://github.com/scikit-learn/scikit-learn>sklearn</a> <br>
 <a href=http://www.h5py.org/>h5py</a>, install it using "pip install h5py" <br>
+python 2.7 <br>
 
 # Content <br>
 ./datasets: the training and testing dataset with extracted features, label and sequence. <br>
